@@ -22,7 +22,7 @@ type Props = {
   analyzing: boolean;
   error: string | null;
   saving: boolean;
-  onSave: (item: FoodItem, meal: string) => void;
+  onSave: (items: FoodItem[], meal: string) => void;
   onRetake: () => void;
 };
 
@@ -45,13 +45,27 @@ export const ResultScreen = ({
   onRetake,
 }: Props) => {
   const { t, rtl, locale } = useSettings();
-  const [index, setIndex] = useState(0);
-  const [factor, setFactor] = useState(1);
+  const [factors, setFactors] = useState<Record<number, number>>({});
+  const [skipped, setSkipped] = useState<Record<number, boolean>>({});
   const [meal, setMeal] = useState<string>('lunch');
 
-  const base = result?.items[index];
-  const item = useMemo(() => (base ? scaled(base, factor) : null), [base, factor]);
-  const title = item ? (locale === 'ar' && item.name_ar ? item.name_ar : item.name) : '';
+  const items = useMemo(
+    () =>
+      (result?.items ?? []).map((candidate, candidateIndex) =>
+        scaled(candidate, factors[candidateIndex] ?? 1),
+      ),
+    [result, factors],
+  );
+  const picked = items.filter((_, candidateIndex) => !skipped[candidateIndex]);
+  const totals = picked.reduce(
+    (acc, entry) => ({
+      calories: acc.calories + entry.calories,
+      protein_g: Math.round((acc.protein_g + entry.protein_g) * 10) / 10,
+      carbs_g: Math.round((acc.carbs_g + entry.carbs_g) * 10) / 10,
+      fat_g: Math.round((acc.fat_g + entry.fat_g) * 10) / 10,
+    }),
+    { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+  );
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
@@ -70,36 +84,19 @@ export const ResultScreen = ({
         <Text style={styles.error}>{t('noFood')}</Text>
       ) : null}
 
-      {item ? (
+      {items.length > 0 ? (
         <View style={styles.card}>
-          <Text style={[styles.title, rtl && styles.rtlText]}>{title}</Text>
-          <Text style={[styles.meta, rtl && styles.rtlText]}>
-            {Math.round(item.confidence * 100)}% {t('confidence')}
+          <Text style={[styles.sectionLabel, rtl && styles.rtlText]}>
+            {t('total')}
             {result?.cached ? ` · ${t('cached')}` : ''}
           </Text>
-
           <Text style={styles.calories}>
-            {Math.round(item.calories)} <Text style={styles.caloriesUnit}>{t('kcal')}</Text>
+            {Math.round(totals.calories)} <Text style={styles.caloriesUnit}>{t('kcal')}</Text>
           </Text>
-
           <View style={styles.macroRow}>
-            <Macro label={t('protein')} value={item.protein_g} color={colors.protein} />
-            <Macro label={t('carbs')} value={item.carbs_g} color={colors.carbs} />
-            <Macro label={t('fat')} value={item.fat_g} color={colors.fat} />
-          </View>
-
-          <Text style={[styles.sectionLabel, rtl && styles.rtlText]}>
-            {t('portion')} · {item.portion_g} g
-          </Text>
-          <View style={styles.chipRow}>
-            {SCALES.map((value) => (
-              <Chip
-                key={value}
-                label={`${value}×`}
-                active={factor === value}
-                onPress={() => setFactor(value)}
-              />
-            ))}
+            <Macro label={t('protein')} value={totals.protein_g} color={colors.protein} />
+            <Macro label={t('carbs')} value={totals.carbs_g} color={colors.carbs} />
+            <Macro label={t('fat')} value={totals.fat_g} color={colors.fat} />
           </View>
 
           <Text style={[styles.sectionLabel, rtl && styles.rtlText]}>{t('meal')}</Text>
@@ -113,28 +110,63 @@ export const ResultScreen = ({
               />
             ))}
           </View>
+        </View>
+      ) : null}
 
-          {result && (result.items.length > 1 || result.alternatives.length > 0) ? (
-            <>
-              <Text style={[styles.sectionLabel, rtl && styles.rtlText]}>{t('notRight')}</Text>
-              <View style={styles.chipRow}>
-                {result.items.map((candidate, candidateIndex) => (
-                  <Chip
-                    key={`${candidate.name}-${candidateIndex}`}
-                    label={locale === 'ar' && candidate.name_ar ? candidate.name_ar : candidate.name}
-                    active={candidateIndex === index}
-                    onPress={() => {
-                      setIndex(candidateIndex);
-                      setFactor(1);
-                    }}
-                  />
-                ))}
-                {result.alternatives.map((alternative) => (
-                  <Chip key={alternative} label={alternative} active={false} muted />
-                ))}
+      {items.length > 0 ? (
+        <Text style={[styles.sectionLabel, rtl && styles.rtlText]}>{t('detected')}</Text>
+      ) : null}
+
+      {items.map((entry, entryIndex) => {
+        const off = !!skipped[entryIndex];
+        return (
+          <View key={`${entry.name}-${entryIndex}`} style={[styles.card, off && styles.cardOff]}>
+            <View style={[styles.itemHead, rtl && styles.itemHeadRtl]}>
+              <View style={styles.itemHeadText}>
+                <Text style={[styles.title, rtl && styles.rtlText]}>
+                  {locale === 'ar' && entry.name_ar ? entry.name_ar : entry.name}
+                </Text>
+                <Text style={[styles.meta, rtl && styles.rtlText]}>
+                  {Math.round(entry.confidence * 100)}% {t('confidence')} · {entry.portion_g} g ·{' '}
+                  {Math.round(entry.calories)} {t('kcal')}
+                </Text>
               </View>
-            </>
-          ) : null}
+              <Chip
+                label={off ? t('include') : t('skip')}
+                active={false}
+                onPress={() => setSkipped({ ...skipped, [entryIndex]: !off })}
+              />
+            </View>
+
+            <View style={styles.macroRow}>
+              <Macro label={t('protein')} value={entry.protein_g} color={colors.protein} />
+              <Macro label={t('carbs')} value={entry.carbs_g} color={colors.carbs} />
+              <Macro label={t('fat')} value={entry.fat_g} color={colors.fat} />
+            </View>
+
+            <Text style={[styles.sectionLabel, rtl && styles.rtlText]}>{t('portion')}</Text>
+            <View style={styles.chipRow}>
+              {SCALES.map((value) => (
+                <Chip
+                  key={value}
+                  label={`${value}×`}
+                  active={(factors[entryIndex] ?? 1) === value}
+                  onPress={() => setFactors({ ...factors, [entryIndex]: value })}
+                />
+              ))}
+            </View>
+          </View>
+        );
+      })}
+
+      {result && result.alternatives.length > 0 ? (
+        <View>
+          <Text style={[styles.sectionLabel, rtl && styles.rtlText]}>{t('notRight')}</Text>
+          <View style={styles.chipRow}>
+            {result.alternatives.map((alternative) => (
+              <Chip key={alternative} label={alternative} active={false} muted />
+            ))}
+          </View>
         </View>
       ) : null}
 
@@ -143,11 +175,13 @@ export const ResultScreen = ({
           <Text style={styles.secondaryText}>{t('retake')}</Text>
         </Pressable>
         <Pressable
-          style={[styles.primary, (!item || saving) && styles.disabled]}
-          disabled={!item || saving}
-          onPress={() => item && onSave(item, meal)}
+          style={[styles.primary, (picked.length === 0 || saving) && styles.disabled]}
+          disabled={picked.length === 0 || saving}
+          onPress={() => onSave(picked, meal)}
         >
-          <Text style={styles.primaryText}>{saving ? '…' : t('save')}</Text>
+          <Text style={styles.primaryText}>
+            {saving ? '…' : `${t('save')}${picked.length > 1 ? ` (${picked.length})` : ''}`}
+          </Text>
         </Pressable>
       </View>
     </ScrollView>
@@ -195,7 +229,11 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 10,
   },
-  title: { color: colors.text, fontSize: 22, fontWeight: '700', textTransform: 'capitalize' },
+  cardOff: { opacity: 0.45 },
+  itemHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  itemHeadRtl: { flexDirection: 'row-reverse' },
+  itemHeadText: { flex: 1, gap: 2 },
+  title: { color: colors.text, fontSize: 19, fontWeight: '700', textTransform: 'capitalize' },
   meta: { color: colors.textDim, fontSize: 12 },
   calories: { color: colors.accent, fontSize: 36, fontWeight: '800' },
   caloriesUnit: { fontSize: 14, color: colors.textDim, fontWeight: '600' },

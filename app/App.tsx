@@ -80,20 +80,22 @@ const Shell = () => {
     }
   };
 
-  const saveItem = async (item: FoodItem, meal: string) => {
+  const saveItems = async (items: FoodItem[], meal: string) => {
     setSaving(true);
     try {
-      await api.addEntry(baseUrl, {
-        name: item.name,
-        name_ar: item.name_ar,
-        portion_g: item.portion_g,
-        calories: item.calories,
-        protein_g: item.protein_g,
-        carbs_g: item.carbs_g,
-        fat_g: item.fat_g,
-        meal,
-        photo_url: result?.photo_url ?? null,
-      });
+      for (const item of items) {
+        await api.addEntry(baseUrl, {
+          name: item.name,
+          name_ar: item.name_ar,
+          portion_g: item.portion_g,
+          calories: item.calories,
+          protein_g: item.protein_g,
+          carbs_g: item.carbs_g,
+          fat_g: item.fat_g,
+          meal,
+          photo_url: result?.photo_url ?? null,
+        });
+      }
       setMode({ kind: 'tabs' });
       setTab('today');
       await refresh();
@@ -130,7 +132,7 @@ const Shell = () => {
             analyzing={analyzing}
             error={analyzeError}
             saving={saving}
-            onSave={saveItem}
+            onSave={saveItems}
             onRetake={() => setMode({ kind: 'capture' })}
           />
         ) : tab === 'today' ? (

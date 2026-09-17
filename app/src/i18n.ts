@@ -46,6 +46,10 @@ const strings = {
     last7: 'Last 7 days',
     avg: 'Daily average',
     cached: 'cached',
+    detected: 'Detected on the plate',
+    total: 'Total',
+    skip: 'Skip',
+    include: 'Include',
   },
   ar: {
     appName: 'سناب كال',
@@ -92,6 +96,10 @@ const strings = {
     last7: 'آخر ٧ أيام',
     avg: 'المتوسط اليومي',
     cached: 'مخزّن',
+    detected: 'ما تم اكتشافه في الطبق',
+    total: 'الإجمالي',
+    skip: 'تجاهل',
+    include: 'تضمين',
   },
 } as const;
 
