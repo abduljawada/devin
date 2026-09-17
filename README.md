@@ -41,7 +41,8 @@ Optional local classifier mode:
 
 | method | path | purpose |
 | --- | --- | --- |
-| `POST` | `/analyze` | multipart `photo` → items with per-portion nutrition |
+| `POST` | `/analyze` | multipart `photo` → items with per-portion nutrition; a barcode in the photo is resolved through Open Food Facts and skips the vision model |
+| `GET` | `/barcode/{code}` | packaged product lookup for the in-app scanner |
 | `GET` | `/foods?q=` | manual food search over the built-in table |
 | `GET`/`POST` | `/entries` | today's diary, add an entry |
 | `DELETE` | `/entries/{id}` | remove an entry |
@@ -68,7 +69,5 @@ cloudflared tunnel --url http://localhost:8000
 
 ## Roadmap
 
-- Barcode scanning for packaged foods (Open Food Facts, free, no key) — `expo-camera`
-  already has the scanner enabled
 - Reference-object portion sizing to tighten the ±20 % gram estimates
 - Per-user accounts and cloud sync

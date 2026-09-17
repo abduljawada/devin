@@ -8,7 +8,15 @@ from fastapi.staticfiles import StaticFiles
 from . import db, images, nutrition
 from .analyzers import get_analyzer
 from .config import settings
-from .schemas import AnalyzeResult, DaySummary, Entry, EntryCreate, MacroTotals, Profile
+from .schemas import (
+    AnalyzeResult,
+    DaySummary,
+    Entry,
+    EntryCreate,
+    FoodItem,
+    MacroTotals,
+    Profile,
+)
 
 app = FastAPI(title="SnapCal API", version="0.1.0")
 
@@ -53,6 +61,15 @@ async def analyze(photo: UploadFile = File(...)) -> AnalyzeResult:
         result.photo_url = photo_url
         return result
 
+    code = images.read_barcode(raw)
+    if code:
+        facts = await nutrition.lookup_barcode(code)
+        if facts is not None:
+            result = _barcode_result(facts)
+            result.photo_url = photo_url
+            cache_path.write_text(result.model_dump_json())
+            return result
+
     analyzer = get_analyzer()
     try:
         result = await analyzer.analyze(prepared)
@@ -62,6 +79,31 @@ async def analyze(photo: UploadFile = File(...)) -> AnalyzeResult:
     result.photo_url = photo_url
     cache_path.write_text(result.model_dump_json())
     return result
+
+
+def _barcode_result(facts: nutrition.NutritionFacts) -> AnalyzeResult:
+    portion = facts.typical_portion_g or 100.0
+    factor = portion / 100.0
+    item = FoodItem(
+        name=facts.name,
+        name_ar=facts.name_ar,
+        confidence=1.0,
+        portion_g=portion,
+        calories=round(facts.calories * factor),
+        protein_g=round(facts.protein_g * factor, 1),
+        carbs_g=round(facts.carbs_g * factor, 1),
+        fat_g=round(facts.fat_g * factor, 1),
+    )
+    return AnalyzeResult(items=[item], analyzer="barcode")
+
+
+@app.get("/barcode/{code}", response_model=AnalyzeResult)
+async def barcode(code: str) -> AnalyzeResult:
+    """Look up a packaged product by barcode through Open Food Facts."""
+    facts = await nutrition.lookup_barcode(code)
+    if facts is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return _barcode_result(facts)
 
 
 @app.get("/foods")

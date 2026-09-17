@@ -11,6 +11,7 @@ import httpx
 from .config import settings
 
 OPEN_FOOD_FACTS_SEARCH = "https://world.openfoodfacts.org/cgi/search.pl"
+OPEN_FOOD_FACTS_PRODUCT = "https://world.openfoodfacts.org/api/v2/product/{barcode}.json"
 
 
 @dataclass(frozen=True)
@@ -199,9 +200,55 @@ async def lookup_remote(label: str) -> NutritionFacts | None:
     )
 
 
+async def lookup_barcode(barcode: str) -> NutritionFacts | None:
+    """Resolve a packaged product by barcode through Open Food Facts."""
+    params = {
+        "fields": "product_name,product_name_ar,generic_name,brands,nutriments,serving_quantity",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            response = await client.get(
+                OPEN_FOOD_FACTS_PRODUCT.format(barcode=barcode), params=params
+            )
+            response.raise_for_status()
+            payload = response.json()
+    except (httpx.HTTPError, ValueError):
+        return None
+    if payload.get("status") != 1:
+        return None
+    product = payload.get("product") or {}
+    nutriments = product.get("nutriments") or {}
+    calories = nutriments.get("energy-kcal_100g")
+    if calories is None:
+        return None
+    brand = (product.get("brands") or "").split(",")[0].strip()
+    name = product.get("product_name") or product.get("generic_name") or barcode
+    try:
+        portion = float(product.get("serving_quantity") or 100.0)
+    except (TypeError, ValueError):
+        portion = 100.0
+    return NutritionFacts(
+        name=f"{brand} {name}".strip(),
+        name_ar=product.get("product_name_ar") or "",
+        calories=float(calories),
+        protein_g=float(nutriments.get("proteins_100g") or 0.0),
+        carbs_g=float(nutriments.get("carbohydrates_100g") or 0.0),
+        fat_g=float(nutriments.get("fat_100g") or 0.0),
+        typical_portion_g=portion or 100.0,
+    )
+
+
 def arabic_name(label: str) -> str:
     facts = lookup(label)
     return facts.name_ar if facts else ""
 
 
-__all__ = ["NutritionFacts", "TABLE", "lookup", "lookup_remote", "arabic_name", "settings"]
+__all__ = [
+    "NutritionFacts",
+    "TABLE",
+    "lookup",
+    "lookup_remote",
+    "lookup_barcode",
+    "arabic_name",
+    "settings",
+]
