@@ -73,8 +73,8 @@ const Shell = () => {
     setAnalyzing(true);
     try {
       setResult(await api.analyze(baseUrl, photoUri));
-    } catch {
-      setAnalyzeError(t('analyzeFailed'));
+    } catch (cause) {
+      setAnalyzeError(`${t('analyzeFailed')}\n${String(cause)}`);
     } finally {
       setAnalyzing(false);
     }

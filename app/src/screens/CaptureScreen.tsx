@@ -1,4 +1,5 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -17,13 +18,23 @@ export const CaptureScreen = ({ onCaptured, onCancel }: Props) => {
   const [busy, setBusy] = useState(false);
   const cameraRef = useRef<CameraView>(null);
 
+  const downscale = async (uri: string): Promise<string> => {
+    try {
+      const rendered = await ImageManipulator.manipulate(uri).resize({ width: 1024 }).renderAsync();
+      const saved = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.7 });
+      return saved.uri;
+    } catch {
+      return uri;
+    }
+  };
+
   const pickFromGallery = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.7,
     });
     if (!result.canceled && result.assets[0]) {
-      onCaptured(result.assets[0].uri);
+      onCaptured(await downscale(result.assets[0].uri));
     }
   };
 
@@ -35,7 +46,7 @@ export const CaptureScreen = ({ onCaptured, onCancel }: Props) => {
     try {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.7 });
       if (photo?.uri) {
-        onCaptured(photo.uri);
+        onCaptured(await downscale(photo.uri));
       }
     } finally {
       setBusy(false);
