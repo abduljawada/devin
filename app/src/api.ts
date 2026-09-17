@@ -1,3 +1,7 @@
+import { fetch as expoFetch } from 'expo/fetch';
+import { File as FileSystemFile } from 'expo-file-system';
+import { Platform } from 'react-native';
+
 export type FoodItem = {
   name: string;
   name_ar: string;
@@ -70,16 +74,16 @@ export const api = {
   health: (baseUrl: string) => request<{ status: string; analyzer: string }>(baseUrl, '/health'),
 
   analyze: async (baseUrl: string, photoUri: string): Promise<AnalyzeResult> => {
+    const url = `${baseUrl.replace(/\/$/, '')}/analyze`;
     const form = new FormData();
-    form.append('photo', {
-      uri: photoUri,
-      name: 'meal.jpg',
-      type: 'image/jpeg',
-    } as unknown as Blob);
-    const response = await fetch(`${baseUrl.replace(/\/$/, '')}/analyze`, {
-      method: 'POST',
-      body: form,
-    });
+    let response: Response;
+    if (Platform.OS === 'web') {
+      form.append('photo', await (await fetch(photoUri)).blob(), 'meal.jpg');
+      response = await fetch(url, { method: 'POST', body: form });
+    } else {
+      form.append('photo', new FileSystemFile(photoUri) as unknown as Blob);
+      response = (await expoFetch(url, { method: 'POST', body: form })) as unknown as Response;
+    }
     if (!response.ok) {
       throw new Error(`${response.status} ${await response.text()}`);
     }
