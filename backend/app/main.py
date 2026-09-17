@@ -63,9 +63,9 @@ async def analyze(photo: UploadFile = File(...)) -> AnalyzeResult:
 
     code = images.read_barcode(raw)
     if code:
-        facts = await nutrition.lookup_barcode(code)
-        if facts is not None:
-            result = _barcode_result(facts)
+        portion = await nutrition.lookup_barcode(code)
+        if portion is not None:
+            result = _barcode_result(portion)
             result.photo_url = photo_url
             cache_path.write_text(result.model_dump_json())
             return result
@@ -81,29 +81,18 @@ async def analyze(photo: UploadFile = File(...)) -> AnalyzeResult:
     return result
 
 
-def _barcode_result(facts: nutrition.NutritionFacts) -> AnalyzeResult:
-    portion = facts.typical_portion_g or 100.0
-    factor = portion / 100.0
+def _barcode_result(portion: nutrition.Portion) -> AnalyzeResult:
     item = FoodItem(
-        name=facts.name,
-        name_ar=facts.name_ar,
+        name=portion.name,
+        name_ar=portion.name_ar,
         confidence=1.0,
-        portion_g=portion,
-        calories=round(facts.calories * factor),
-        protein_g=round(facts.protein_g * factor, 1),
-        carbs_g=round(facts.carbs_g * factor, 1),
-        fat_g=round(facts.fat_g * factor, 1),
+        portion_g=portion.portion_g,
+        calories=round(portion.calories),
+        protein_g=round(portion.protein_g, 1),
+        carbs_g=round(portion.carbs_g, 1),
+        fat_g=round(portion.fat_g, 1),
     )
     return AnalyzeResult(items=[item], analyzer="barcode")
-
-
-@app.get("/barcode/{code}", response_model=AnalyzeResult)
-async def barcode(code: str) -> AnalyzeResult:
-    """Look up a packaged product by barcode through Open Food Facts."""
-    facts = await nutrition.lookup_barcode(code)
-    if facts is None:
-        raise HTTPException(status_code=404, detail="Product not found")
-    return _barcode_result(facts)
 
 
 @app.get("/foods")

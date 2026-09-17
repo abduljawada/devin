@@ -21,7 +21,7 @@ import { SettingsProvider, useSettings } from './src/settings';
 import { colors, radius } from './src/theme';
 
 type Tab = 'today' | 'history' | 'settings';
-type Mode = { kind: 'tabs' } | { kind: 'capture' } | { kind: 'result'; photoUri: string | null };
+type Mode = { kind: 'tabs' } | { kind: 'capture' } | { kind: 'result'; photoUri: string };
 
 const Shell = () => {
   const { t, rtl, baseUrl, ready } = useSettings();
@@ -82,20 +82,6 @@ const Shell = () => {
     }
   };
 
-  const lookupBarcode = async (code: string) => {
-    setMode({ kind: 'result', photoUri: null });
-    setResult(null);
-    setAnalyzeError(null);
-    setAnalyzing(true);
-    try {
-      setResult(await api.barcode(baseUrl, code));
-    } catch {
-      setAnalyzeError(t('barcodeNotFound'));
-    } finally {
-      setAnalyzing(false);
-    }
-  };
-
   const saveItems = async (items: FoodItem[], meal: string) => {
     setSaving(true);
     try {
@@ -129,11 +115,7 @@ const Shell = () => {
 
   if (mode.kind === 'capture') {
     return (
-      <CaptureScreen
-        onCaptured={analyze}
-        onScanned={lookupBarcode}
-        onCancel={() => setMode({ kind: 'tabs' })}
-      />
+      <CaptureScreen onCaptured={analyze} onCancel={() => setMode({ kind: 'tabs' })} />
     );
   }
 

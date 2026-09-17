@@ -90,9 +90,6 @@ export const api = {
     return (await response.json()) as AnalyzeResult;
   },
 
-  barcode: (baseUrl: string, code: string) =>
-    request<AnalyzeResult>(baseUrl, `/barcode/${encodeURIComponent(code)}`),
-
   summary: (baseUrl: string) => request<DaySummary>(baseUrl, '/summary'),
 
   entries: (baseUrl: string) => request<Entry[]>(baseUrl, '/entries'),

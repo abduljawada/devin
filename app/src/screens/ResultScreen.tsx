@@ -17,7 +17,7 @@ const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 const SCALES = [0.5, 1, 1.5, 2];
 
 type Props = {
-  photoUri: string | null;
+  photoUri: string;
   result: AnalyzeResult | null;
   analyzing: boolean;
   error: string | null;
@@ -69,7 +69,7 @@ export const ResultScreen = ({
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      {photoUri ? <Image source={{ uri: photoUri }} style={styles.photo} /> : null}
+      <Image source={{ uri: photoUri }} style={styles.photo} />
 
       {analyzing ? (
         <View style={styles.center}>
