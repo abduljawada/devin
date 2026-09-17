@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+backend/snapcal.db
+backend/media/
+backend/cache/
+node_modules/
+.expo/
+dist/
+*.log
+.DS_Store
