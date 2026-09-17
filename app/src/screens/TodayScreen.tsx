@@ -1,9 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { DaySummary, Entry } from '../api';
 import { CalorieRing } from '../components/CalorieRing';
 import { EntryRow } from '../components/EntryRow';
+import { FadeIn } from '../components/FadeIn';
 import { MacroBars } from '../components/MacroBars';
 import { useSettings } from '../settings';
 import { colors, radius } from '../theme';
@@ -29,7 +32,10 @@ export const TodayScreen = ({ summary, entries, loading, error, onRefresh, onDel
     >
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <View style={styles.ringCard}>
+      <LinearGradient
+        colors={['rgba(55,214,122,0.14)', 'transparent']}
+        style={styles.ringCard}
+      >
         {summary ? (
           <CalorieRing
             consumed={summary.totals.calories}
@@ -41,10 +47,10 @@ export const TodayScreen = ({ summary, entries, loading, error, onRefresh, onDel
         ) : (
           <ActivityIndicator color={colors.accent} size="large" />
         )}
-      </View>
+      </LinearGradient>
 
       {summary ? (
-        <View style={styles.card}>
+        <FadeIn delay={120} style={styles.card}>
           <MacroBars
             rtl={rtl}
             macros={[
@@ -68,26 +74,30 @@ export const TodayScreen = ({ summary, entries, loading, error, onRefresh, onDel
               },
             ]}
           />
-        </View>
+        </FadeIn>
       ) : null}
 
       {entries.length === 0 && !loading ? (
-        <View style={styles.empty}>
+        <FadeIn delay={180} style={styles.empty}>
+          <View style={styles.emptyIcon}>
+            <Ionicons name="camera-outline" size={26} color={colors.accent} />
+          </View>
           <Text style={styles.emptyTitle}>{t('eatenNothing')}</Text>
           <Text style={styles.emptyHint}>{t('eatenNothingHint')}</Text>
-        </View>
+        </FadeIn>
       ) : (
         <View style={styles.list}>
-          {entries.map((entry) => (
-            <EntryRow
-              key={entry.id}
-              entry={entry}
-              baseUrl={baseUrl}
-              locale={locale}
-              rtl={rtl}
-              deleteLabel={t('delete')}
-              onDelete={onDelete}
-            />
+          {entries.map((entry, index) => (
+            <FadeIn key={entry.id} delay={140 + index * 60}>
+              <EntryRow
+                entry={entry}
+                baseUrl={baseUrl}
+                locale={locale}
+                rtl={rtl}
+                deleteLabel={t('delete')}
+                onDelete={onDelete}
+              />
+            </FadeIn>
           ))}
         </View>
       )}
@@ -97,7 +107,7 @@ export const TodayScreen = ({ summary, entries, loading, error, onRefresh, onDel
 
 const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 140, gap: 14 },
-  ringCard: { alignItems: 'center', paddingVertical: 8 },
+  ringCard: { alignItems: 'center', paddingVertical: 14, borderRadius: radius.lg },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.md,
@@ -106,7 +116,17 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   list: { gap: 10 },
-  empty: { alignItems: 'center', paddingVertical: 28, gap: 6 },
+  empty: { alignItems: 'center', paddingVertical: 28, gap: 8 },
+  emptyIcon: {
+    width: 54,
+    height: 54,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   emptyTitle: { color: colors.text, fontSize: 16, fontWeight: '600' },
   emptyHint: { color: colors.textDim, fontSize: 13 },
   error: {

@@ -1,6 +1,9 @@
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -12,6 +15,8 @@ import {
   Profile,
   api,
 } from './src/api';
+import { FadeIn } from './src/components/FadeIn';
+import { Tap } from './src/components/Tap';
 import { CaptureScreen } from './src/screens/CaptureScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
 import { ResultScreen } from './src/screens/ResultScreen';
@@ -98,6 +103,7 @@ const Shell = () => {
           photo_url: result?.photo_url ?? null,
         });
       }
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setMode({ kind: 'tabs' });
       setTab('today');
       await refresh();
@@ -122,11 +128,14 @@ const Shell = () => {
   return (
     <View style={[styles.safe, { paddingTop: insets.top }]}>
       <View style={[styles.header, rtl && styles.headerRtl]}>
-        <Text style={styles.brand}>{t('appName')}</Text>
+        <View style={[styles.brandRow, rtl && styles.headerRtl]}>
+          <Ionicons name="nutrition" size={20} color={colors.accent} />
+          <Text style={styles.brand}>{t('appName')}</Text>
+        </View>
         <Text style={styles.headerTab}>{t(mode.kind === 'result' ? 'snapFood' : tab)}</Text>
       </View>
 
-      <View style={styles.body}>
+      <FadeIn style={styles.body} key={mode.kind === 'result' ? 'result' : tab} offset={16}>
         {mode.kind === 'result' ? (
           <ResultScreen
             photoUri={mode.photoUri}
@@ -157,7 +166,7 @@ const Shell = () => {
             }}
           />
         )}
-      </View>
+      </FadeIn>
 
       {mode.kind === 'tabs' ? (
         <View
@@ -167,17 +176,39 @@ const Shell = () => {
             { paddingBottom: 10 + insets.bottom },
           ]}
         >
-          <TabButton label={t('today')} active={tab === 'today'} onPress={() => setTab('today')} />
-          <Pressable style={styles.fab} onPress={() => setMode({ kind: 'capture' })}>
-            <Text style={styles.fabIcon}>+</Text>
-          </Pressable>
+          <TabButton
+            label={t('today')}
+            icon="today-outline"
+            iconActive="today"
+            active={tab === 'today'}
+            onPress={() => setTab('today')}
+          />
           <TabButton
             label={t('history')}
+            icon="stats-chart-outline"
+            iconActive="stats-chart"
             active={tab === 'history'}
             onPress={() => setTab('history')}
           />
+          <Tap
+            style={styles.fab}
+            scaleTo={0.9}
+            haptic={Haptics.ImpactFeedbackStyle.Medium}
+            onPress={() => setMode({ kind: 'capture' })}
+          >
+            <LinearGradient
+              colors={[colors.accent, '#8CF0B4']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.fabFill}
+            >
+              <Ionicons name="camera" size={26} color="#06240F" />
+            </LinearGradient>
+          </Tap>
           <TabButton
             label={t('settings')}
+            icon="settings-outline"
+            iconActive="settings"
             active={tab === 'settings'}
             onPress={() => setTab('settings')}
           />
@@ -191,16 +222,26 @@ const Shell = () => {
 
 const TabButton = ({
   label,
+  icon,
+  iconActive,
   active,
   onPress,
 }: {
   label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  iconActive: keyof typeof Ionicons.glyphMap;
   active: boolean;
   onPress: () => void;
 }) => (
-  <Pressable onPress={onPress} style={styles.tabButton}>
+  <Tap onPress={onPress} style={styles.tabButton} scaleTo={0.92}>
+    <Ionicons
+      name={active ? iconActive : icon}
+      size={21}
+      color={active ? colors.accent : colors.textDim}
+    />
     <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{label}</Text>
-  </Pressable>
+    <View style={[styles.tabDot, active && styles.tabDotActive]} />
+  </Tap>
 );
 
 export default function App() {
@@ -224,6 +265,7 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   headerRtl: { flexDirection: 'row-reverse' },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   brand: { color: colors.accent, fontSize: 20, fontWeight: '800' },
   headerTab: { color: colors.textDim, fontSize: 13 },
   body: { flex: 1 },
@@ -236,21 +278,25 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     paddingVertical: 10,
   },
-  tabButton: { paddingHorizontal: 10, paddingVertical: 8 },
-  tabLabel: { color: colors.textDim, fontSize: 13, fontWeight: '600' },
+  tabButton: { paddingHorizontal: 10, paddingVertical: 6, alignItems: 'center', gap: 2 },
+  tabLabel: { color: colors.textDim, fontSize: 11, fontWeight: '600' },
   tabLabelActive: { color: colors.text },
+  tabDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: 'transparent' },
+  tabDotActive: { backgroundColor: colors.accent },
   fab: {
-    width: 56,
-    height: 56,
+    marginTop: -28,
     borderRadius: radius.pill,
-    backgroundColor: colors.accent,
+    shadowColor: colors.accent,
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  fabFill: {
+    width: 60,
+    height: 60,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -26,
-    shadowColor: '#000',
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 6,
   },
-  fabIcon: { color: '#06240F', fontSize: 30, fontWeight: '800', marginTop: -3 },
 });

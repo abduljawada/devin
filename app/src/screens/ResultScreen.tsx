@@ -1,8 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   Image,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,6 +14,8 @@ import {
 } from 'react-native';
 
 import { AnalyzeResult, FoodItem } from '../api';
+import { FadeIn } from '../components/FadeIn';
+import { Tap } from '../components/Tap';
 import { useSettings } from '../settings';
 import { colors, radius } from '../theme';
 
@@ -75,6 +81,8 @@ export const ResultScreen = ({
         <View style={styles.center}>
           <ActivityIndicator color={colors.accent} size="large" />
           <Text style={styles.analyzing}>{t('analyzing')}</Text>
+          <Skeleton />
+          <Skeleton />
         </View>
       ) : null}
 
@@ -85,11 +93,23 @@ export const ResultScreen = ({
       ) : null}
 
       {items.length > 0 ? (
-        <View style={styles.card}>
-          <Text style={[styles.sectionLabel, rtl && styles.rtlText]}>
-            {t('total')}
-            {result?.cached ? ` · ${t('cached')}` : ''}
-          </Text>
+        <FadeIn style={styles.card}>
+          <View style={[styles.totalHead, rtl && styles.itemHeadRtl]}>
+            <Text style={[styles.sectionLabel, rtl && styles.rtlText]}>
+              {t('total')}
+              {result?.cached ? ` · ${t('cached')}` : ''}
+            </Text>
+            <View style={styles.badge}>
+              <Ionicons
+                name={result?.analyzer === 'barcode' ? 'barcode-outline' : 'sparkles-outline'}
+                size={12}
+                color={colors.accent}
+              />
+              <Text style={styles.badgeText}>
+                {t(result?.analyzer === 'barcode' ? 'fromBarcode' : 'fromVision')}
+              </Text>
+            </View>
+          </View>
           <Text style={styles.calories}>
             {Math.round(totals.calories)} <Text style={styles.caloriesUnit}>{t('kcal')}</Text>
           </Text>
@@ -110,7 +130,7 @@ export const ResultScreen = ({
               />
             ))}
           </View>
-        </View>
+        </FadeIn>
       ) : null}
 
       {items.length > 0 ? (
@@ -120,7 +140,11 @@ export const ResultScreen = ({
       {items.map((entry, entryIndex) => {
         const off = !!skipped[entryIndex];
         return (
-          <View key={`${entry.name}-${entryIndex}`} style={[styles.card, off && styles.cardOff]}>
+          <FadeIn
+            key={`${entry.name}-${entryIndex}`}
+            delay={80 + entryIndex * 70}
+            style={[styles.card, off && styles.cardOff]}
+          >
             <View style={[styles.itemHead, rtl && styles.itemHeadRtl]}>
               <View style={styles.itemHeadText}>
                 <Text style={[styles.title, rtl && styles.rtlText]}>
@@ -155,7 +179,7 @@ export const ResultScreen = ({
                 />
               ))}
             </View>
-          </View>
+          </FadeIn>
         );
       })}
 
@@ -170,19 +194,36 @@ export const ResultScreen = ({
         </View>
       ) : null}
 
-      <View style={styles.actions}>
-        <Pressable style={styles.secondary} onPress={onRetake}>
+      <View style={[styles.actions, rtl && styles.itemHeadRtl]}>
+        <Tap style={styles.secondary} onPress={onRetake}>
+          <Ionicons name="camera-reverse-outline" size={17} color={colors.text} />
           <Text style={styles.secondaryText}>{t('retake')}</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.primary, (picked.length === 0 || saving) && styles.disabled]}
+        </Tap>
+        <Tap
+          style={styles.primaryWrap}
           disabled={picked.length === 0 || saving}
+          haptic={Haptics.ImpactFeedbackStyle.Medium}
           onPress={() => onSave(picked, meal)}
         >
-          <Text style={styles.primaryText}>
-            {saving ? '…' : `${t('save')}${picked.length > 1 ? ` (${picked.length})` : ''}`}
-          </Text>
-        </Pressable>
+          <LinearGradient
+            colors={[colors.accent, '#8CF0B4']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.primary}
+          >
+            {saving ? (
+              <ActivityIndicator color="#06240F" />
+            ) : (
+              <>
+                <Ionicons name="add-circle" size={18} color="#06240F" />
+                <Text style={styles.primaryText}>
+                  {t('save')}
+                  {picked.length > 1 ? ` (${picked.length})` : ''}
+                </Text>
+              </>
+            )}
+          </LinearGradient>
+        </Tap>
       </View>
     </ScrollView>
   );
@@ -207,20 +248,55 @@ const Chip = ({
   muted?: boolean;
   onPress?: () => void;
 }) => (
-  <Pressable
+  <Tap
     onPress={onPress}
     disabled={!onPress}
+    scaleTo={0.93}
+    haptic={Haptics.ImpactFeedbackStyle.Light}
     style={[styles.chip, active && styles.chipActive, muted && styles.chipMuted]}
   >
     <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
-  </Pressable>
+  </Tap>
 );
+
+/** Pulsing placeholder shown while the server is still reading the photo. */
+const Skeleton = () => {
+  const shimmer = useRef(new Animated.Value(0.35)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmer, {
+          toValue: 0.9,
+          duration: 700,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(shimmer, {
+          toValue: 0.35,
+          duration: 700,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [shimmer]);
+
+  return <Animated.View style={[styles.skeleton, { opacity: shimmer }]} />;
+};
 
 const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 60, gap: 14 },
   photo: { width: '100%', height: 220, borderRadius: radius.md, backgroundColor: colors.surfaceAlt },
-  center: { alignItems: 'center', gap: 10, paddingVertical: 16 },
-  analyzing: { color: colors.textDim },
+  center: { alignItems: 'stretch', gap: 10, paddingVertical: 16 },
+  analyzing: { color: colors.textDim, textAlign: 'center' },
+  skeleton: {
+    height: 64,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceAlt,
+  },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.md,
@@ -230,6 +306,17 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   cardOff: { opacity: 0.45 },
+  totalHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(55,214,122,0.12)',
+  },
+  badgeText: { color: colors.accent, fontSize: 11, fontWeight: '600' },
   itemHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   itemHeadRtl: { flexDirection: 'row-reverse' },
   itemHeadText: { flex: 1, gap: 2 },
@@ -256,22 +343,27 @@ const styles = StyleSheet.create({
   chipMuted: { opacity: 0.55 },
   chipText: { color: colors.text, fontSize: 13, textTransform: 'capitalize' },
   chipTextActive: { color: '#06240F', fontWeight: '700' },
-  actions: { flexDirection: 'row', gap: 12 },
+  actions: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  primaryWrap: { flex: 2 },
   primary: {
-    flex: 2,
-    backgroundColor: colors.accent,
+    flexDirection: 'row',
+    gap: 7,
     paddingVertical: 15,
     borderRadius: radius.pill,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   primaryText: { color: '#06240F', fontWeight: '700', fontSize: 15 },
   secondary: {
     flex: 1,
+    flexDirection: 'row',
+    gap: 6,
     borderWidth: 1,
     borderColor: colors.border,
     paddingVertical: 15,
     borderRadius: radius.pill,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   secondaryText: { color: colors.text, fontWeight: '600' },
   disabled: { opacity: 0.45 },

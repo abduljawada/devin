@@ -51,6 +51,8 @@ const strings = {
     total: 'Total',
     skip: 'Skip',
     include: 'Include',
+    fromBarcode: 'Barcode label',
+    fromVision: 'AI estimate',
   },
   ar: {
     appName: 'سناب كال',
@@ -102,6 +104,8 @@ const strings = {
     total: 'الإجمالي',
     skip: 'تجاهل',
     include: 'تضمين',
+    fromBarcode: 'بيانات الباركود',
+    fromVision: 'تقدير ذكي',
   },
 } as const;
 

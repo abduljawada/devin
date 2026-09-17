@@ -1,7 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Profile } from '../api';
+import { FadeIn } from '../components/FadeIn';
+import { Tap } from '../components/Tap';
 import { Locale } from '../i18n';
 import { useSettings } from '../settings';
 import { colors, radius } from '../theme';
@@ -42,6 +47,7 @@ export const SettingsScreen = ({ profile, onSaveProfile }: Props) => {
       fat_goal_g: Number(goals.fat_goal_g) || 65,
       locale,
     });
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setSaved(true);
     setTimeout(() => setSaved(false), 1800);
   };
@@ -61,32 +67,39 @@ export const SettingsScreen = ({ profile, onSaveProfile }: Props) => {
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <View style={styles.card}>
-        <Text style={[styles.label, rtl && styles.rtlText]}>{t('language')}</Text>
+      <FadeIn style={styles.card}>
+        <View style={[styles.cardHead, rtl && styles.cardHeadRtl]}>
+          <Ionicons name="language-outline" size={16} color={colors.textDim} />
+          <Text style={styles.label}>{t('language')}</Text>
+        </View>
         <View style={styles.row}>
           {(['en', 'ar'] as Locale[]).map((value) => (
-            <Pressable
+            <Tap
               key={value}
+              scaleTo={0.93}
               style={[styles.chip, locale === value && styles.chipActive]}
               onPress={() => update({ locale: value })}
             >
               <Text style={[styles.chipText, locale === value && styles.chipTextActive]}>
                 {value === 'en' ? 'English' : 'العربية'}
               </Text>
-            </Pressable>
+            </Tap>
           ))}
         </View>
-      </View>
+      </FadeIn>
 
-      <View style={styles.card}>
+      <FadeIn delay={90} style={styles.card}>
         {field(t('goal'), 'calorie_goal')}
         {field(t('proteinGoal'), 'protein_goal_g')}
         {field(t('carbsGoal'), 'carbs_goal_g')}
         {field(t('fatGoal'), 'fat_goal_g')}
-      </View>
+      </FadeIn>
 
-      <View style={styles.card}>
-        <Text style={[styles.label, rtl && styles.rtlText]}>{t('serverUrl')}</Text>
+      <FadeIn delay={160} style={styles.card}>
+        <View style={[styles.cardHead, rtl && styles.cardHeadRtl]}>
+          <Ionicons name="cloud-outline" size={16} color={colors.textDim} />
+          <Text style={styles.label}>{t('serverUrl')}</Text>
+        </View>
         <TextInput
           style={styles.input}
           value={url}
@@ -96,11 +109,19 @@ export const SettingsScreen = ({ profile, onSaveProfile }: Props) => {
           placeholder="https://…"
           placeholderTextColor={colors.textDim}
         />
-      </View>
+      </FadeIn>
 
-      <Pressable style={styles.primary} onPress={save}>
-        <Text style={styles.primaryText}>{saved ? t('saved') : t('saveSettings')}</Text>
-      </Pressable>
+      <Tap onPress={save} haptic={null}>
+        <LinearGradient
+          colors={saved ? ['#8CF0B4', colors.accent] : [colors.accent, '#8CF0B4']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.primary}
+        >
+          <Ionicons name={saved ? 'checkmark-circle' : 'save-outline'} size={17} color="#06240F" />
+          <Text style={styles.primaryText}>{saved ? t('saved') : t('saveSettings')}</Text>
+        </LinearGradient>
+      </Tap>
     </ScrollView>
   );
 };
@@ -115,6 +136,8 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
   },
+  cardHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cardHeadRtl: { flexDirection: 'row-reverse' },
   field: { gap: 6 },
   label: { color: colors.textDim, fontSize: 12 },
   input: {
@@ -139,10 +162,12 @@ const styles = StyleSheet.create({
   chipText: { color: colors.text },
   chipTextActive: { color: '#06240F', fontWeight: '700' },
   primary: {
-    backgroundColor: colors.accent,
+    flexDirection: 'row',
+    gap: 7,
     paddingVertical: 15,
     borderRadius: radius.pill,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   primaryText: { color: '#06240F', fontWeight: '700', fontSize: 15 },
   rtlText: { textAlign: 'right' },

@@ -1,7 +1,9 @@
-import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Easing, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { HistoryPoint } from '../api';
+import { FadeIn } from '../components/FadeIn';
 import { useSettings } from '../settings';
 import { colors, radius } from '../theme';
 
@@ -21,38 +23,74 @@ export const HistoryScreen = ({ points }: { points: HistoryPoint[] }) => {
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={[styles.heading, rtl && styles.rtlText]}>{t('last7')}</Text>
 
-      <View style={styles.card}>
+      <FadeIn style={styles.card}>
         <View style={styles.chart}>
-          {points.map((point) => {
-            const height = Math.max((point.calories / peak) * 150, 3);
-            const over = point.calories > goal;
-            return (
-              <View key={point.day} style={styles.column}>
-                <Text style={styles.barValue}>{point.calories ? Math.round(point.calories) : ''}</Text>
-                <View
-                  style={[
-                    styles.bar,
-                    { height, backgroundColor: over ? colors.danger : colors.accent },
-                    point.calories === 0 && styles.barEmpty,
-                  ]}
-                />
-                <Text style={styles.barLabel}>
-                  {(locale === 'ar' ? WEEKDAYS_AR : WEEKDAYS)[new Date(point.day).getDay()]}
-                </Text>
-              </View>
-            );
-          })}
+          {points.map((point, index) => (
+            <Bar
+              key={point.day}
+              index={index}
+              calories={point.calories}
+              height={Math.max((point.calories / peak) * 150, 3)}
+              over={point.calories > goal}
+              label={(locale === 'ar' ? WEEKDAYS_AR : WEEKDAYS)[new Date(point.day).getDay()]}
+            />
+          ))}
         </View>
         <View style={[styles.goalLine, { bottom: 34 + (goal / peak) * 150 }]} />
-      </View>
+      </FadeIn>
 
-      <View style={styles.card}>
-        <Text style={[styles.statLabel, rtl && styles.rtlText]}>{t('avg')}</Text>
-        <Text style={[styles.statValue, rtl && styles.rtlText]}>
-          {average} {t('kcal')}
-        </Text>
-      </View>
+      <FadeIn delay={160} style={[styles.card, styles.statCard]}>
+        <View style={styles.statIcon}>
+          <Ionicons name="trending-up" size={18} color={colors.accent} />
+        </View>
+        <View>
+          <Text style={[styles.statLabel, rtl && styles.rtlText]}>{t('avg')}</Text>
+          <Text style={[styles.statValue, rtl && styles.rtlText]}>
+            {average} {t('kcal')}
+          </Text>
+        </View>
+      </FadeIn>
     </ScrollView>
+  );
+};
+
+const Bar = ({
+  index,
+  calories,
+  height,
+  over,
+  label,
+}: {
+  index: number;
+  calories: number;
+  height: number;
+  over: boolean;
+  label: string;
+}) => {
+  const grow = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(grow, {
+      toValue: height,
+      duration: 600,
+      delay: index * 70,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [grow, height, index]);
+
+  return (
+    <View style={styles.column}>
+      <Text style={styles.barValue}>{calories ? Math.round(calories) : ''}</Text>
+      <Animated.View
+        style={[
+          styles.bar,
+          { height: grow, backgroundColor: over ? colors.danger : colors.accent },
+          calories === 0 && styles.barEmpty,
+        ]}
+      />
+      <Text style={styles.barLabel}>{label}</Text>
+    </View>
   );
 };
 
@@ -80,6 +118,15 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.textDim,
     opacity: 0.35,
+  },
+  statCard: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  statIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(55,214,122,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statLabel: { color: colors.textDim, fontSize: 12 },
   statValue: { color: colors.text, fontSize: 24, fontWeight: '700', marginTop: 4 },
