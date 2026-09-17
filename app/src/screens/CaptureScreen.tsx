@@ -3,6 +3,7 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSettings } from '../settings';
 import { colors, radius } from '../theme';
@@ -15,6 +16,7 @@ type Props = {
 export const CaptureScreen = ({ onCaptured, onCancel }: Props) => {
   const { t } = useSettings();
   const [permission, requestPermission] = useCameraPermissions();
+  const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false);
   const cameraRef = useRef<CameraView>(null);
 
@@ -77,7 +79,7 @@ export const CaptureScreen = ({ onCaptured, onCancel }: Props) => {
   return (
     <View style={styles.container}>
       <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" />
-      <View style={styles.controls}>
+      <View style={[styles.controls, { bottom: 24 + insets.bottom }]}>
         <Pressable onPress={pickFromGallery} hitSlop={10}>
           <Text style={styles.sideAction}>{t('fromGallery')}</Text>
         </Pressable>
@@ -94,7 +96,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   controls: {
     position: 'absolute',
-    bottom: 42,
     left: 0,
     right: 0,
     flexDirection: 'row',

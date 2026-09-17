@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   AnalyzeResult,
@@ -24,6 +25,7 @@ type Mode = { kind: 'tabs' } | { kind: 'capture' } | { kind: 'result'; photoUri:
 
 const Shell = () => {
   const { t, rtl, baseUrl, ready } = useSettings();
+  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('today');
   const [mode, setMode] = useState<Mode>({ kind: 'tabs' });
 
@@ -118,7 +120,7 @@ const Shell = () => {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={[styles.safe, { paddingTop: insets.top }]}>
       <View style={[styles.header, rtl && styles.headerRtl]}>
         <Text style={styles.brand}>{t('appName')}</Text>
         <Text style={styles.headerTab}>{t(mode.kind === 'result' ? 'snapFood' : tab)}</Text>
@@ -158,7 +160,13 @@ const Shell = () => {
       </View>
 
       {mode.kind === 'tabs' ? (
-        <View style={[styles.tabBar, rtl && styles.headerRtl]}>
+        <View
+          style={[
+            styles.tabBar,
+            rtl && styles.headerRtl,
+            { paddingBottom: 10 + insets.bottom },
+          ]}
+        >
           <TabButton label={t('today')} active={tab === 'today'} onPress={() => setTab('today')} />
           <Pressable style={styles.fab} onPress={() => setMode({ kind: 'capture' })}>
             <Text style={styles.fabIcon}>+</Text>
@@ -177,7 +185,7 @@ const Shell = () => {
       ) : null}
 
       <StatusBar style="light" />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -197,9 +205,11 @@ const TabButton = ({
 
 export default function App() {
   return (
-    <SettingsProvider>
-      <Shell />
-    </SettingsProvider>
+    <SafeAreaProvider>
+      <SettingsProvider>
+        <Shell />
+      </SettingsProvider>
+    </SafeAreaProvider>
   );
 }
 
